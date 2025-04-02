@@ -1,0 +1,88 @@
+# SummarizedExperiment
+
+# Cargamos primero algunas librerias para poder trabajar con archivos del tipo ".mzML" y con el comando SummariezExperiment:
+library(MSnbase) # para trabajar con los archivos .mzML
+library(SummarizedExperiment) 
+library(BiocParallel)
+
+# Previo al análisis, tamibén es necesario definir la ruta donde se encuentran los archivos descargados (no lo ponemos en código, pero se ha establecido la ruta).  
+
+# Cargamos los datos (.mzML):
+# Primeros hacemos una lista de todos los archivos que hay en la carpeta
+arch_mzml <- list.files(pattern = "*.mzML", full.names = TRUE) #como el path está definido, no hace falta especificarlo
+# Cargamos los archivos en un objeto MSnExp
+raw_data <- readMSData(files = arch_mzml, mode = "onDisk")
+
+
+# Antes de crear el SummariezExperiment, extraemos información que nos sera relevante sobre los metabolitos y las muestras
+# Extraemos los metadatos de los datos "en crudo"
+metadata <- pData(raw_data)
+# Y creamos un dataframe con la info de las filas, que corresponeden a 
+# los metabolitos detectados entre los datos en crudo
+metabolitos <- fData(raw_data)
+# Vemos las dimensiones para tener en cuenta las intensidades despues
+dim(metadata)
+dim(metabolitos)
+
+# Extraemos los cromatogramas para obtener las intensidades
+cromatogramas <- chromatogram(raw_data)
+# y los converitimos en una matriz de intensidades
+intensidades <- do.call(cbind, lapply(cromatogramas, function(chrom) {
+  intensity(chrom)
+}))
+dim(intensidades) #las filas no coinciden con los metabolitos!!
+
+# Como la matriz de intensidades posee 99 filas, debemos ajustar los metabolitos estudiados a 99:
+metabolitos <- metabolitos[intersect(rownames(metabolitos), rownames(intensidades)), , drop = FALSE]
+dim(metabolitos) #nos aseguramos que sean 99 filas ahora
+
+
+# SummarizedExperiment
+se <- SummarizedExperiment(
+  assays = list(counts = intensidades),  # Matriz de intensidades
+  rowData = metabolitos,                 # Filas = metabolitos
+  colData = metadata                    # Columnas = metadatos
+)
+# Para ver el resumen del SummarizedExperiment solo hace falta llamarlo:
+se
+
+# Análisis exploratorio
+# Resumen estadistico de las intensidades
+summary(intensidades)
+# Verificamos si hay valores faltantes
+sum(is.na(intensidades))
+colnames(intensidades) <- metadata$sampleNames #le damos los nombres de la metadata
+# Visualizacion meidante boxplot
+boxplot(log2(intensidades + 1), 
+        main = "Distribución de las Intensidades por Muestra", 
+        las = 2, col = "salmon1",
+        ylab = "log2(Intensidad)")
+
+#PCA:
+```{r}
+library(ggplot2)
+
+# Transformamos por log las intensidades para evitar sesgo
+log_intensidades <- log2(intensidades + 1)
+
+# PCA
+pca <- prcomp(t(log_intensidades), scale = TRUE)
+
+# dataframe con los resultados del PCA para hacer grafica despues
+pca_df <- data.frame(PC1 = pca$x[,1], PC2 = pca$x[,2], Sample = colnames(intensidades))
+
+ggplot(pca_df, aes(x = PC1, y = PC2, label = Sample)) +
+  geom_point(color = "red2", size = 3) +
+  geom_text(vjust = 1.5, size = 3) +
+  labs(title = "PCA de las muestras", x = "PC1", y = "PC2") +
+  theme_minimal()
+
+# Correlacion y heatmap
+library(pheatmap)
+
+# matriz de correlación
+cor_matrix <- cor(log_intensidades, method = "pearson")
+# heatmap
+pheatmap(cor_matrix, 
+         main = "Correlación entre Muestras",
+         color = colorRampPalette(c("blue", "white", "red"))(100))

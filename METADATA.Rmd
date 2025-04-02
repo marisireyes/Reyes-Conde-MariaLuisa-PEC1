@@ -1,0 +1,23 @@
+---
+title: "Metadata"
+author: "María Luisa Reyes Conde"
+date: "2025-04-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(MSnbase) # para trabajar con los archivos .mzML
+arch_mzml <- list.files(pattern = "*.mzML", full.names = TRUE)
+raw_data <- readMSData(files = arch_mzml, mode = "onDisk")
+metadata <- pData(raw_data)
+```
+
+```{r}
+head(metadata)
+```
+
+En la metadata de este dataset nos encontramos unicamente con los nombres de las muestras del estudio ST003776.

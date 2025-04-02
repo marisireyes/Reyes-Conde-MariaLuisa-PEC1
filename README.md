@@ -5,6 +5,6 @@ Repositorio GitHub con los datos correspondientes a la solución de la PEC1 de e
 Este repositorio incluye:
 - El informe de la PEC1
 - El objeto SummarizedExperiment en formato .Rda
-- El código R de la exploración de datos (en formato .Rmd)
+- El código R de la exploración de datos (en formato .Rmd y en .R)
 - Los datos en formato texto
 - Los metadatos en un .Rmd
